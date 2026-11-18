@@ -1,0 +1,21 @@
+name: Status probe
+on:
+  issue_comment:
+    types: [created]
+jobs:
+  status:
+    if: github.event.issue.pull_request && startsWith(github.event.comment.body, 'make status ')
+    runs-on: ubuntu-latest
+    permissions:
+      statuses: write
+      pull-requests: read
+    steps:
+      - env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+          PR_NUMBER: ${{ github.event.issue.number }}
+          COMMENT: ${{ github.event.comment.body }}
+        run: |
+          sha=$(gh api "repos/$GH_REPO/pulls/$PR_NUMBER" -q .head.sha)
+          gh api -X POST "repos/$GH_REPO/statuses/$sha" -f state="${COMMENT#make status }" \
+            -f context="pr_validation / integration_tests / verify_tests_status" -f description="Test FAILED" -q .id

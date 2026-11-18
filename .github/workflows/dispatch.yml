@@ -1,0 +1,28 @@
+name: Dispatch
+on:
+  workflow_call:
+    inputs:
+      workflow:
+        type: string
+        required: true
+jobs:
+  dispatch:
+    runs-on: ubuntu-latest
+    steps:
+      - env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+          PR_NUMBER: ${{ github.event.issue.number }}
+          COMMENT: ${{ github.event.comment.body }}
+          WORKFLOW: ${{ inputs.workflow }}
+        run: |
+          pr=$(gh api "repos/$GH_REPO/pulls/$PR_NUMBER")
+          ref=$(jq -r .head.ref <<< "$pr")
+          mode=normal
+          case $COMMENT in
+            *"run checks skipall"*) mode=skipall ;;
+            *"run checks skip"*) mode=skip ;;
+            *"run checks fail"*) mode=fail ;;
+          esac
+          echo "dispatching $WORKFLOW on $ref, mode $mode"
+          gh workflow run "$WORKFLOW" --ref "$ref" -f pr_number="$PR_NUMBER" -f mode="$mode"

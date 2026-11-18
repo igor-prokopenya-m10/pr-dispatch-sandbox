@@ -1,0 +1,24 @@
+name: Integration tests
+on:
+  workflow_call:
+    inputs:
+      skip:
+        type: boolean
+        required: true
+      fail:
+        type: boolean
+        required: true
+jobs:
+  run_tests:
+    if: ${{ !inputs.skip }}
+    runs-on: ubuntu-latest
+    steps:
+      - run: |
+          echo "stand + cucumber"
+          [ "${{ inputs.fail }}" != true ]
+  verify_tests_status:
+    needs: run_tests
+    if: ${{ !inputs.skip && !cancelled() }}
+    runs-on: ubuntu-latest
+    steps:
+      - run: '[ "${{ needs.run_tests.result }}" = success ]'

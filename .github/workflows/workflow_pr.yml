@@ -1,0 +1,19 @@
+name: Workflow PR
+on:
+  workflow_call:
+    inputs:
+      mode:
+        type: string
+        required: true
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - run: echo "build ${{ github.sha }} on ${{ github.ref }}"
+  integration_tests:
+    needs: build
+    if: inputs.mode != 'skipall'
+    uses: ./.github/workflows/reusable_integration_tests.yml
+    with:
+      skip: ${{ inputs.mode == 'skip' }}
+      fail: ${{ inputs.mode == 'fail' }}

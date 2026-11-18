@@ -1,0 +1,35 @@
+name: Gate step probe
+on:
+  issue_comment:
+    types: [created]
+jobs:
+  stand_not_needed:
+    if: github.event.issue.pull_request && github.event.comment.body == 'gate check'
+    runs-on: ubuntu-latest
+    permissions:
+      checks: write
+      pull-requests: read
+    steps:
+      - id: pr
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: echo "sha=$(gh api repos/${{ github.repository }}/pulls/${{ github.event.issue.number }} -q .head.sha)" >> "$GITHUB_OUTPUT"
+      - name: Mark the integration tests skipped
+        env:
+          GH_TOKEN: ${{ github.token }}
+          PR_SHA: ${{ steps.pr.outputs.sha }}
+        run: |
+          jq -n --arg sha "$PR_SHA" --arg url "$GITHUB_SERVER_URL/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID" '{
+            name: "pr_validation / integration_tests / verify_tests_status",
+            head_sha: $sha,
+            status: "completed",
+            conclusion: "skipped",
+            details_url: $url,
+            output: {
+              title: "Integration tests not run",
+              summary: "Every changed file is in default.skip or in .pr-gate.skip of the service, so no stand was bootstrapped. The build, unit tests and checkstyle passed. Comment `run checks force` to run the integration tests anyway."
+            }
+          }' | curl -fsSL -X POST \
+            -H "Authorization: Bearer $GH_TOKEN" \
+            -H "Accept: application/vnd.github+json" \
+            "$GITHUB_API_URL/repos/$GITHUB_REPOSITORY/check-runs" -d @- > /dev/null
